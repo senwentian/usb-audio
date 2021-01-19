@@ -48,6 +48,10 @@
 
 static const char *TAG = "USB_AUDIO";
 
+/* Static\dynamic create task
+ * - 0 : dynamic
+ * - 1 : Static
+ */
 #define CFG_USB_AUDIO_TASK_CREAT_STATIC 0
 
 //--------------------------------------------------------------------+
@@ -101,6 +105,7 @@ int16_t mic_buf[1000];
 // Buffer for speaker data
 int16_t spk_buf[1000];
 // // Speaker data size received in the last frame
+int8_t test[1000];
 // int spk_data_size;
 
 // static task for usbd
@@ -112,14 +117,14 @@ int16_t spk_buf[1000];
 #endif
 
 #if CFG_USB_AUDIO_TASK_CREAT_STATIC
-StackType_t  usb_device_stack[USBD_STACK_SIZE];
-StaticTask_t usb_device_taskdef;
+  StackType_t  usb_device_stack[USBD_STACK_SIZE];
+  StaticTask_t usb_device_taskdef;
 
-StackType_t  usb_audio_stack[USBD_STACK_SIZE];
-StaticTask_t usb_audio_taskdef;
+  StackType_t  usb_audio_stack[USBD_STACK_SIZE];
+  StaticTask_t usb_audio_taskdef;
 #else 
-#define USB_DEVICE_TASK_STACK_SIZE (20*configMINIMAL_STACK_SIZE)
-#define USB_AUDIO_TASK_STACK_SIZE (20*configMINIMAL_STACK_SIZE)
+  #define USB_DEVICE_TASK_STACK_SIZE (20*configMINIMAL_STACK_SIZE)
+  #define USB_AUDIO_TASK_STACK_SIZE (20*configMINIMAL_STACK_SIZE)
 #endif
 
 void led_blinky_cb(TimerHandle_t xTimer);
@@ -144,7 +149,7 @@ int main(void)
 
   // es8311
   ESP_ERROR_CHECK(es8311_init(SAMPLE_RATE));
-  ESP_ERROR_CHECK(es8311_set_voice_volume(100));
+  ESP_ERROR_CHECK(es8311_set_voice_volume(88));
 
   // i2s
   ESP_ERROR_CHECK(i2s_bus_init());
@@ -170,22 +175,6 @@ int main(void)
 
   return 0;
 }
-
-#if 0
-static void audio_test_task(void *arg)
-{
-    while(1) {
-        size_t bytes_written = 0;
-        ESP_LOGI(TAG, "Start to play music");
-        // i2s_write(I2S_NUM, mp3_1_pcm_start, mp3_1_pcm_end - mp3_1_pcm_start, &bytes_written, portMAX_DELAY);
-        vTaskDelay(500);
-    }
-    ESP_LOGW(TAG, "Reach the end of music, release all resource");
-    i2s_stop(I2S_NUM);
-    i2s_driver_uninstall(I2S_NUM);
-}
-#endif
-
 
 #if CFG_TUSB_MCU == OPT_MCU_ESP32S2
 void app_main(void)
@@ -452,10 +441,12 @@ bool tud_audio_rx_done_cb(uint8_t rhport, uint8_t *buffer, uint16_t buf_size)
   }
   memcpy(spk_buf, buffer, buf_size);
 
-  // size_t bytes_written = 0;
-  // ESP_LOGI(TAG, "Start to play music");
-  // i2s_write(I2S_NUM, buffer, data_size, &bytes_written, portMAX_DELAY);
+#if 1 /*play the buffer*/
+  size_t bytes_written = 0;
+  i2s_write(I2S_NUM, buffer, data_size, &bytes_written, portMAX_DELAY);
+#endif
 
+#if 0 /*print the buffer*/
   // for(int i = 0; i < data_size; i++) {
   //   printf("%x ", buffer[i]);
   //   if(!((i + 1) % 8)) {
@@ -479,6 +470,7 @@ bool tud_audio_rx_done_cb(uint8_t rhport, uint8_t *buffer, uint16_t buf_size)
     }
   }
   printf("\r\n\r\n\r\n end \r\n\r\n\r\n");
+#endif
 
   return true;
 }
@@ -501,7 +493,6 @@ bool tud_audio_tx_done_pre_load_cb(uint8_t rhport, uint8_t itf, uint8_t ep_in, u
 void audio_task(void)
 {
   while(1) {
-    size_t bytes_written = 0;
     // When new data arrived, copy data from speaker buffer, to microphone buffer
     // and send it over
     int data_size;
@@ -515,29 +506,41 @@ void audio_task(void)
       int16_t *src = spk_buf;
       int16_t *limit = spk_buf + data_size / 2;
       int16_t *dst = mic_buf;
+      int i = 0;
       while (src < limit)
       {
         // Combine two channels into one
         int32_t left = *src++;
         int32_t right = *src++;
-        *dst++ = (int16_t)((left + right) / 2);
+        *dst = (int16_t)((left + right) / 2);
+        test[i++] = *dst >> 8;
+        test[i++] = *dst;
+        // printf("the left is :%d \t the right is : %d \t the test is :%d \r\n", left, right, test[i]);
+        dst++;
+        i++;
       }
-      // tud_audio_write((uint8_t *)mic_buf, data_size / 2);
-      // i2s_write(I2S_NUM, dst, data_size / 2, &bytes_written, portMAX_DELAY);
+      // tud_audio_write((uint8_t *)mic_buf, spk_data_size / 2);
 
-      // for(int i = 0; i < data_size; i++) {
-      //   uint8_t temp1 = src[i] >> 8;
-      //   uint8_t temp2 = src[i];
-      //   printf("%x %x ", temp1, temp2);
-      //   if(!((i + 1) % 4)) {
-      //     printf(" ");
-      //   }
-      //   if(!((i + 1) % 8)) {
-      //     printf("\r\n");
-      //   }
-      // }
-      // printf("\r\n\r\nbuffer_data_size:%d", data_size);
-      // printf("\r\n\r\n end \r\n\r\n\r\n");
+#if 0 /*play the buffer*/
+      size_t bytes_written = 0;
+      i2s_write(I2S_NUM, test, i, &bytes_written, portMAX_DELAY);
+#endif
+
+#if 0 /*print the buffer*/
+      for(int i = 0; i < data_size; i++) {
+        uint8_t temp1 = src[i] >> 8;
+        uint8_t temp2 = src[i];
+        printf("%x %x ", temp1, temp2);
+        if(!((i + 1) % 4)) {
+          printf(" ");
+        }
+        if(!((i + 1) % 8)) {
+          printf("\r\n");
+        }
+      }
+      printf("\r\n\r\nbuffer_data_size:%d", data_size);
+      printf("\r\n\r\n end \r\n\r\n\r\n");
+#endif
     }
   }
 }

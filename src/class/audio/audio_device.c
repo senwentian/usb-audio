@@ -272,7 +272,6 @@ void tud_audio_int_ctr_n_read_flush (uint8_t itf)
 
 static bool audio_rx_done_cb(uint8_t rhport, audiod_interface_t* audio, uint8_t* buffer, uint16_t bufsize)
 {
-  size_t bytes_written = 0;
   switch (CFG_TUD_AUDIO_FORMAT_TYPE_RX)
   {
     case AUDIO_FORMAT_TYPE_UNDEFINED:
@@ -288,19 +287,24 @@ static bool audio_rx_done_cb(uint8_t rhport, audiod_interface_t* audio, uint8_t*
         case AUDIO_DATA_FORMAT_TYPE_I_PCM:
 
 #if CFG_TUD_AUDIO_RX_FIFO_SIZE
-          // i2s_write(I2S_NUM, buffer, bufsize, &bytes_written, portMAX_DELAY);
+  #if 0 /* play the buffer */
+          size_t bytes_written = 0;
+          i2s_write(I2S_NUM, buffer, bufsize, &bytes_written, portMAX_DELAY);
+  #endif
 
-          // for(int i = 0; i < bufsize; i++) {
-          //   printf("%x ", buffer[i]);
-          //   if(!((i + 1) % 8)) {
-          //     printf(" ");
-          //   }
-          //   if(!((i + 1) % 16)) {
-          //     printf("\r\n");
-          //   }
-          // }
-          // printf("\r\n\r\nbuffer_data_size:%d", bufsize);
-          // printf("\r\n\r\n end \r\n\r\n\r\n");
+  #if 0 /* print the buffer */
+          for(int i = 0; i < bufsize; i++) {
+            printf("%x ", buffer[i]);
+            if(!((i + 1) % 8)) {
+              printf(" ");
+            }
+            if(!((i + 1) % 16)) {
+              printf("\r\n");
+            }
+          }
+          printf("\r\n\r\nbuffer_data_size:%d", bufsize);
+          printf("\r\n\r\n end \r\n\r\n\r\n");
+  #endif
 
           TU_VERIFY(audio_rx_done_type_I_pcm_ff_cb(rhport, audio, buffer, bufsize));
 #else

@@ -21,3 +21,5 @@ _build
 cov-int
 # cppcheck build directories
 *-build-dir
+sdkconfig
+
