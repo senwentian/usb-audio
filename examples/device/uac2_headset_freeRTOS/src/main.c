@@ -154,8 +154,8 @@ int main(void)
   }
 
   // soft timer for blinky
-  blinky_tm = xTimerCreateStatic(NULL, pdMS_TO_TICKS(BLINK_NOT_MOUNTED), true, NULL, led_blinky_cb, &blinky_tmdef);
-  xTimerStart(blinky_tm, 0);
+  // blinky_tm = xTimerCreateStatic(NULL, pdMS_TO_TICKS(BLINK_NOT_MOUNTED), true, NULL, led_blinky_cb, &blinky_tmdef);
+  // xTimerStart(blinky_tm, 0);
 
   // creat queue
   spk_data_size = xQueueCreate(2, sizeof(int32_t));
@@ -446,13 +446,13 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const * p_reque
 }
 
 StreamBufferHandle_t xStreamBuffer;
-uint32_t data_size = 0;
-/* Buffer and buf_size is half less than normal data */
+uint32_t abcd_data_size = 0;
 bool tud_audio_rx_done_cb(uint8_t rhport, uint8_t *buffer, uint16_t buf_size)
 {
   (void)rhport;
 
-  data_size = buf_size;
+  abcd_data_size += buf_size;
+  // printf("callback here, the buffer size is %d\r\n", buf_size);
 
 
   // BaseType_t xStatus = xQueueSend(spk_data_size, &data_size, portMAX_DELAY);
@@ -460,7 +460,7 @@ bool tud_audio_rx_done_cb(uint8_t rhport, uint8_t *buffer, uint16_t buf_size)
   // {
   //   printf( "Could not send to the queue.\r\n" );
   // }
-  xStreamBufferSend(xStreamBuffer, buffer, buf_size, 0);
+  // xStreamBufferSend(xStreamBuffer, buffer, buf_size, 0);
 
 #if 0 /*play the buffer*/
   size_t bytes_written = 0;
@@ -539,7 +539,8 @@ void audio_task(void)
 		// 	printf( "Could not receive from the queue.\r\n" );
 		// }
     // data_size = xStreamBufferReceive(xStreamBuffer, test, sizeof(test), portMAX_DELAY);
-
+    printf("the buffer size is %d\r\n", abcd_data_size);
+    vTaskDelay(10);
 // #if 1 /*play the buffer*/
 //       size_t bytes_written = 0;
 //       printf("w.\r\n");
@@ -547,19 +548,19 @@ void audio_task(void)
 // #endif
     // uint16_t len = tud_audio_available();
 
-    if (play) {
-      if ((esp_partition_write(data_partition, 0, test, 78*1024)) == ESP_OK) {
-        printf("\r\nwrite over\r\n");
-      }
-      vTaskDelete(NULL);
-    }
+    // if (play) {
+    //   if ((esp_partition_write(data_partition, 0, test, 78*1024)) == ESP_OK) {
+    //     printf("\r\nwrite over\r\n");
+    //   }
+    //   vTaskDelete(NULL);
+    // }
 
-    if (count > 78000) {
-      play = 1;
-    } else {
-      xStreamBufferReceive(xStreamBuffer, test+count, data_size, portMAX_DELAY);
-      count += data_size;
-    }
+    // if (count > 78000) {
+    //   play = 1;
+    // } else {
+    //   xStreamBufferReceive(xStreamBuffer, test+count, data_size, portMAX_DELAY);
+    //   count += data_size;
+    // }
 
     // if (len > 0) {
     //   uint32_t* data = malloc(len);
